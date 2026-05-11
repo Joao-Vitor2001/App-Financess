@@ -9,6 +9,8 @@ const totalReceitas = document.getElementById("total-receitas");
 const totalDespesas = document.getElementById("total-despesas");
 const totalSaldo = document.getElementById("total-saldo");
 const totalVencimentos = document.getElementById("total-vencimentos");
+const parcelasRow = document.getElementById("parcelas").closest(".form-row");
+const vencimentoLabel = document.querySelector("label[for='vencimento']");
 
 let tipoSelecionado = "Despesa";
 const registros = [];
@@ -114,6 +116,17 @@ function atualizarDashboard() {
     renderizarVencimentos();
 }
 
+function atualizarCamposTipo() {
+    if (tipoSelecionado === "Receita") {
+        parcelasRow.style.display = "none";
+        vencimentoLabel.textContent = "Dia do pagamento";
+        document.getElementById("parcelas").value = "1";
+    } else {
+        parcelasRow.style.display = "";
+        vencimentoLabel.textContent = "Data de vencimento";
+    }
+}
+
 tipoToggle.addEventListener("click", event => {
     const button = event.target.closest(".type-button");
     if (!button) return;
@@ -121,6 +134,7 @@ tipoToggle.addEventListener("click", event => {
     document.querySelectorAll(".type-button").forEach(el => el.classList.remove("active"));
     button.classList.add("active");
     tipoSelecionado = button.dataset.value;
+    atualizarCamposTipo();
 });
 
 form.addEventListener("submit", event => {
@@ -149,6 +163,7 @@ form.addEventListener("submit", event => {
     document.querySelector(".type-button[data-value=\"Despesa\"]").classList.add("active");
     document.querySelector(".type-button[data-value=\"Receita\"]").classList.remove("active");
     tipoSelecionado = "Despesa";
+    atualizarCamposTipo();
 
     atualizarDashboard();
 });
