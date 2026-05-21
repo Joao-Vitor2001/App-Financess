@@ -2,13 +2,23 @@ services:
   - type: static
     name: projeto-tarefas-frontend
     env: static
-    repo: "https://github.com/YOUR_USER/YOUR_REPO"
+    repo: "https://github.com/Joao-Vitor2001/App-Financess.git"
     branch: main
     buildCommand: ""
     staticPublishPath: frontend
+
+  - type: web_service
+    name: projeto-tarefas-backend
+    env: node
+    repo: "https://github.com/Joao-Vitor2001/App-Financess.git"
+    branch: main
+    rootDirectory: backend
+    buildCommand: "npm install"
+    startCommand: "npm start"
 
 # Observações:
 # - Substitua a chave "repo" pela URL do seu repositório GitHub.
 # - Se o seu branch padrão for "master", altere "branch" para master.
 # - O Render usa este arquivo como IaC; após conectar o repositório no Render,
-#   o serviço será criado automaticamente quando o arquivo for detectado.
+#   os serviços serão criados automaticamente quando o arquivo for detectado.
+# - Para o backend, configure a variável de ambiente JWT_SECRET no painel do Render.
