@@ -1,31 +1,63 @@
-﻿const form = document.getElementById("form-financa");
-const tipoToggle = document.getElementById("tipo-toggle");
-const tabelaFinancas = document.getElementById("tabela-financas");
-const listaVencimentos = document.getElementById("lista-vencimentos");
-const filtroTipo = document.getElementById("filtro-tipo");
-const filtroCategoria = document.getElementById("filtro-categoria");
-const exportarBtn = document.getElementById("exportar");
-const totalReceitas = document.getElementById("total-receitas");
-const totalDespesas = document.getElementById("total-despesas");
-const totalSaldo = document.getElementById("total-saldo");
-const totalVencimentos = document.getElementById("total-vencimentos");
-const parcelasRow = document.getElementById("parcelas").closest(".form-row");
-const vencimentoLabel = document.querySelector("label[for='vencimento']");
+﻿// Variáveis de referência aos elementos do DOM
+//const=VARIAVEL QUE NÃO VAI MUDAR DE VALOR, APENAS RECEBER O ELEMENTO UMA VEZ
+//
+const form = document.getElementById("form-financa"); //REFERENCIA AO FORMULARIO DE CADASTRO
+const tipoToggle = document.getElementById("tipo-toggle");  //REFERENCIA AO TOGGLE DE TIPO / BOTAO (RECEITA/DESPESA)
+const tabelaFinancas = document.getElementById("tabela-financas"); //REFERENCIA A TABELA ONDE AS FINANCAS VÃO SER EXIBIDAS
+const listaVencimentos = document.getElementById("lista-vencimentos"); //REFERENCIA A LISTA ONDE OS PROXIMOS VENCIMENTOS VÃO SER EXIBIDOS
+const filtroTipo = document.getElementById("filtro-tipo"); //REFERENCIA AO SELECT DE FILTRO DE TIPO
+const filtroCategoria = document.getElementById("filtro-categoria"); //REFERENCIA AO SELECT DE FILTRO DE CATEGORIA
+const exportarBtn = document.getElementById("exportar"); //REFERENCIA AO BOTAO DE EXPORTAR
+const totalReceitas = document.getElementById("total-receitas"); //REFERENCIA AO ELEMENTO QUE EXIBE O TOTAL DE RECEITAS
+const totalDespesas = document.getElementById("total-despesas"); //REFERENCIA AO ELEMENTO QUE EXIBE O TOTAL DE DESPESAS
+const totalSaldo = document.getElementById("total-saldo"); //REFERENCIA AO ELEMENTO QUE EXIBE O SALDO TOTAL
+const totalVencimentos = document.getElementById("total-vencimentos"); //REFERENCIA AO ELEMENTO QUE EXIBE O TOTAL DE VENCIMENTOS PROXIMOS
+const vencimentoRow = document.getElementById("vencimento-row");  //REFERENCIA A LINHA DO FORMULARIO ONDE FICA O INPUT DE VENCIMENTO (QUE É OCULTADA QUANDO SELECIONA RECEITA)
+const diaPagamentoRow = document.getElementById("dia-pagamento-row");  //REFERENCIA A LINHA DO FORMULARIO ONDE FICA O SELECT DE DIA DE PAGAMENTO (QUE É OCULTADA QUANDO SELECIONA DESPESA
+const parcelasGrid = document.getElementById("parcelas-grid");  //REFERENCIA AO GRID DO FORMULARIO ONDE FICA OS CAMPOS DE PARCELAS (QUE SÃO OCULTADOS QUANDO SELECIONA RECEITA)
+const vencimentoInput = document.getElementById("vencimento");  //REFERENCIA AO INPUT DE VENCIMENTO DO FORMULARIO     
+const diaPagamentoSelect = document.getElementById("diaPagamento"); //REFERENCIA AO SELECT DE DIA DE PAGAMENTO DO FORMULARIO
+const parcelasSelect = document.getElementById("parcelas");  //REFERENCIA AO SELECT DE PARCELAS DO FORMULARIO
+const parcelaAtualInput = document.getElementById("parcelaAtual"); //REFERENCIA AO INPUT DE PARCELA ATUAL DO FORMULARIO
 
-let tipoSelecionado = "Despesa";
-const registros = [];
+let tipoSelecionado = "Despesa";  //VARIAVEL QUE ARMAZENA O TIPO SELECIONADO NO FORMULARIO (RECEITA OU DESPESA), INICIALIZADA COMO DESPESA PARA QUE O FORMULARIO INICIE COM AS CONFIGURAÇÕES DE DESPESA
+const registros = [];  //ARRAY QUE VAI ARMAZENAR TODOS OS REGISTROS DE FINANCAS CADASTRADOS, CADA REGISTRO É UM OBJETO COM AS PROPRIEDADES: titulo, valor, vencimento, parcelas, parcelaAtual, categoria, tipo
 
-function formatarMoeda(valor) {
+function formatarMoeda(valor) {  //FUNÇÃO QUE RECEBE UM VALOR NUMÉRICO E RETORNA UMA STRING FORMATADA COMO MOEDA BRASILEIRA (EX: 1234.56 => "1.234,56")
     return Number(valor).toLocaleString("pt-BR", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     });
 }
 
-function calcularStatus(vencimento) {
+function ehDiaPagamento(item) {
+    return item.tipo === "Receita" && /^\d{1,2}$/.test(item.vencimento);
+}
+
+function formatarVencimento(item) {
+    if (ehDiaPagamento(item)) {
+        return `Dia ${String(item.vencimento).padStart(2, "0")}`;
+    }
+
+    return item.vencimento.split("-").reverse().join("/");
+}
+
+function calcularStatus(item) {
+    if (ehDiaPagamento(item)) {
+        return "Recebido";
+    }
+
     const hoje = new Date();
-    const dataVencimento = new Date(vencimento + "T23:59:59");
+    const dataVencimento = new Date(item.vencimento + "T23:59:59");
     return dataVencimento <= hoje ? "Recebido" : "Pendente";
+}
+
+function formatarParcela(item) {
+    if (item.tipo === "Receita") {
+        return "-";
+    }
+
+    return `${item.parcelaAtual || 1}/${item.parcelas}`;
 }
 
 function atualizarResumo() {
@@ -37,6 +69,8 @@ function atualizarResumo() {
         .reduce((sum, item) => sum + item.valor, 0);
 
     const vencimentos = registros.filter(item => {
+        if (ehDiaPagamento(item)) return false;
+
         const hoje = new Date();
         const data = new Date(item.vencimento + "T23:59:59");
         const diff = (data - hoje) / (1000 * 60 * 60 * 24);
@@ -64,15 +98,15 @@ function renderizarTabela() {
     }
 
     tabelaFinancas.innerHTML = itensFiltrados.map(item => {
-        const status = calcularStatus(item.vencimento);
+        const status = calcularStatus(item);
         return `
             <tr>
                 <td>${item.titulo}</td>
                 <td>${item.categoria}</td>
                 <td>${item.tipo}</td>
                 <td>R$ ${formatarMoeda(item.valor)}</td>
-                <td>${item.vencimento.split("-").reverse().join("/")}</td>
-                <td>${item.parcelas}x</td>
+                <td>${formatarVencimento(item)}</td>
+                <td>${formatarParcela(item)}</td>
                 <td><span class="status-badge ${status === "Recebido" ? "recebido" : "pendente"}">${status}</span></td>
             </tr>
         `;
@@ -81,6 +115,7 @@ function renderizarTabela() {
 
 function renderizarVencimentos() {
     const proximos = registros
+        .filter(item => !ehDiaPagamento(item))
         .slice()
         .sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento))
         .slice(0, 3);
@@ -116,14 +151,40 @@ function atualizarDashboard() {
     renderizarVencimentos();
 }
 
+function criarDiasPagamento() {
+    if (diaPagamentoSelect.children.length) return;
+
+    for (let dia = 1; dia <= 31; dia++) {
+        const valor = String(dia).padStart(2, "0");
+        const option = document.createElement("option");
+
+        option.value = valor;
+        option.textContent = valor;
+
+        diaPagamentoSelect.appendChild(option);
+    }
+}
+
 function atualizarCamposTipo() {
+    criarDiasPagamento();
+
     if (tipoSelecionado === "Receita") {
-        parcelasRow.style.display = "none";
-        vencimentoLabel.textContent = "Dia do pagamento";
-        document.getElementById("parcelas").value = "1";
+        vencimentoRow.style.display = "none";
+        diaPagamentoRow.style.display = "";
+        parcelasGrid.style.display = "none";
+
+        vencimentoInput.required = false;
+        diaPagamentoSelect.required = true;
+        parcelasSelect.value = "1";
+        parcelaAtualInput.value = "1";
     } else {
-        parcelasRow.style.display = "";
-        vencimentoLabel.textContent = "Data de vencimento";
+        vencimentoRow.style.display = "";
+        diaPagamentoRow.style.display = "none";
+        parcelasGrid.style.display = "grid";
+
+        vencimentoInput.required = true;
+        diaPagamentoSelect.required = false;
+        diaPagamentoSelect.value = "1";
     }
 }
 
@@ -142,30 +203,46 @@ form.addEventListener("submit", event => {
 
     const titulo = document.getElementById("titulo").value.trim();
     const valor = parseFloat(document.getElementById("valor").value.replace(",", ".")) || 0;
-    const vencimento = document.getElementById("vencimento").value;
-    const parcelas = document.getElementById("parcelas").value;
+    const diaPagamento = diaPagamentoSelect.value;
+    const vencimento = tipoSelecionado === "Receita" ? diaPagamento : vencimentoInput.value;
+    const parcelas = parcelasSelect.value;
+    const parcelaAtual = tipoSelecionado === "Receita" ? "1" : parcelaAtualInput.value;
     const categoria = document.getElementById("categoria").value;
 
-    if (!titulo || !valor || !vencimento) {
+    if (!titulo || !valor || !vencimento || !parcelaAtual) {
         return;
     }
 
-    registros.unshift({
-        titulo,
-        valor,
-        vencimento,
-        parcelas,
-        categoria,
-        tipo: tipoSelecionado,
-    });
+    const totalParcelas = parseInt(parcelas);
+    const grupoId = Date.now();
 
-    form.reset();
-    document.querySelector(".type-button[data-value=\"Despesa\"]").classList.add("active");
-    document.querySelector(".type-button[data-value=\"Receita\"]").classList.remove("active");
-    tipoSelecionado = "Despesa";
-    atualizarCamposTipo();
+    for (let i = 0; i < totalParcelas; i++) {
 
-    atualizarDashboard();
+        let dataParcela = new Date(vencimento);
+
+        dataParcela.setMonth(dataParcela.getMonth() + i);
+
+        registros.unshift({
+            grupoId,
+            titulo,
+            valor,
+            vencimento: dataParcela.toISOString().split("T")[0],
+            parcelas: totalParcelas,
+            parcelaAtual: i + 1,
+            categoria,
+            tipo: tipoSelecionado,
+        });
+
+    }
+
+form.reset();
+document.querySelector(".type-button[data-value=\"Despesa\"]").classList.add("active");
+document.querySelector(".type-button[data-value=\"Receita\"]").classList.remove("active");
+tipoSelecionado = "Despesa";
+atualizarCamposTipo();
+
+atualizarDashboard();
+
 });
 
 filtroTipo.addEventListener("change", renderizarTabela);
@@ -179,9 +256,9 @@ exportarBtn.addEventListener("click", () => {
             item.categoria,
             item.tipo,
             `R$ ${formatarMoeda(item.valor)}`,
-            item.vencimento.split("-").reverse().join("/"),
-            item.parcelas,
-            calcularStatus(item.vencimento),
+            formatarVencimento(item),
+            formatarParcela(item),
+            calcularStatus(item),
         ])
     ].map(row => row.join(";")).join("\n");
 
@@ -197,3 +274,4 @@ exportarBtn.addEventListener("click", () => {
 });
 
 atualizarDashboard();
+atualizarCamposTipo();
