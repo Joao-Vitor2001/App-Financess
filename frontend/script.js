@@ -22,6 +22,8 @@ const parcelaAtualInput = document.getElementById("parcelaAtual"); //REFERENCIA 
 
 let tipoSelecionado = "Despesa";  //VARIAVEL QUE ARMAZENA O TIPO SELECIONADO NO FORMULARIO (RECEITA OU DESPESA), INICIALIZADA COMO DESPESA PARA QUE O FORMULARIO INICIE COM AS CONFIGURAÇÕES DE DESPESA
 const registros = [];  //ARRAY QUE VAI ARMAZENAR TODOS OS REGISTROS DE FINANCAS CADASTRADOS, CADA REGISTRO É UM OBJETO COM AS PROPRIEDADES: titulo, valor, vencimento, parcelas, parcelaAtual, categoria, tipo
+// API_BASE é definido em config.js; se for null, sincronização com backend é desabilitada
+const BACKEND = (typeof API_BASE !== 'undefined') ? API_BASE : null;
 
 function formatarMoeda(valor) {  //FUNÇÃO QUE RECEBE UM VALOR NUMÉRICO E RETORNA UMA STRING FORMATADA COMO MOEDA BRASILEIRA (EX: 1234.56 => "1.234,56")
     return Number(valor).toLocaleString("pt-BR", {
@@ -219,10 +221,9 @@ form.addEventListener("submit", event => {
     for (let i = 0; i < totalParcelas; i++) {
 
         let dataParcela = new Date(vencimento);
-
         dataParcela.setMonth(dataParcela.getMonth() + i);
 
-        registros.unshift({
+        const item = {
             grupoId,
             titulo,
             valor,
@@ -231,7 +232,29 @@ form.addEventListener("submit", event => {
             parcelaAtual: i + 1,
             categoria,
             tipo: tipoSelecionado,
-        });
+        };
+
+        registros.unshift(item);
+
+        // Se houver BACKEND configurado e token, tente sincronizar cada parcela criada
+        try {
+            const token = localStorage.getItem('token');
+            if (BACKEND && token) {
+                fetch(`${BACKEND}/finances`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(item)
+                }).then(res => {
+                    if (!res.ok) return res.json().then(r => Promise.reject(r));
+                    return res.json();
+                }).catch(err => console.warn('Sync to backend failed', err));
+            }
+        } catch (e) {
+            console.warn('Sync skipped', e);
+        }
 
     }
 
